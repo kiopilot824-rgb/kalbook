@@ -13,8 +13,6 @@ import io
 import json
 import mimetypes
 import os
-
-RAILWAY_DEPLOYMENT = os.environ.get("RAILWAY_DEPLOYMENT", "0") == "1"
 import re
 import subprocess
 import sys
@@ -98,7 +96,7 @@ def _is_loopback_hostname(hostname: str) -> bool:
 
 
 def _parse_host_header(value: str, expected_port: int):
-    """Return normalized ``(host, port)`` for a valid local Host header."""
+    """Return normalized ``(host, port)`` for a valid Host header."""
     raw = str(value or '').strip()
     if (not raw or ',' in raw or '/' in raw or '\\' in raw
             or '?' in raw or '#' in raw):
@@ -109,8 +107,16 @@ def _parse_host_header(value: str, expected_port: int):
         port = parsed.port
     except (TypeError, ValueError):
         return None
-    if (parsed.username is not None or parsed.password is not None
-            or not _is_loopback_hostname(host)):
+
+    if parsed.username is not None or parsed.password is not None or not host:
+        return None
+
+    if os.environ.get('IG_RAILWAY') == '1':
+        # Railway terminates the public HTTPS connection and forwards the
+        # request to the container. The public Host normally has no port.
+        return host, (port if port is not None else expected_port)
+
+    if not _is_loopback_hostname(host):
         return None
     if port is None:
         if expected_port not in (80, 443):
@@ -148,12 +154,19 @@ def _same_origin_request(handler) -> bool:
         origin_port = parsed.port or (80 if parsed.scheme == 'http' else 443)
     except (TypeError, ValueError):
         return False
-    return (parsed.scheme == 'http'
-            and not parsed.username and not parsed.password
-            and parsed.path in ('', '/')
-            and not parsed.query and not parsed.fragment
-            and origin_host == host_info[0]
-            and origin_port == host_info[1])
+    if parsed.scheme not in ('http', 'https'):
+        return False
+    if parsed.username or parsed.password or parsed.path not in ('', '/'):
+        return False
+    if parsed.query or parsed.fragment or origin_host != host_info[0]:
+        return False
+
+    if os.environ.get('IG_RAILWAY') == '1':
+        # The proxy may expose HTTPS/443 while the container listens on
+        # Railway's internal HTTP port.
+        return origin_port in (80, 443, host_info[1])
+
+    return origin_port == host_info[1]
 
 
 def _safe_join(base: str, *parts: str) -> str | None:
