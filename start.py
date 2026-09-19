@@ -138,8 +138,8 @@ def _install_missing_dependencies(skip: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Instagram OSINT web app')
-    parser.add_argument('--host', default="0.0.0.0")
-    parser.add_argument('--port', type=int, default=int(__import__("os").environ.get("PORT", "8000")))
+    parser.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
+    parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', '8000')))
     parser.add_argument('--no-browser', action='store_true')
     parser.add_argument('--skip-deps', action='store_true')
     parser.add_argument(
