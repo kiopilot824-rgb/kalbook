@@ -138,10 +138,8 @@ def _install_missing_dependencies(skip: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Instagram OSINT web app')
-    default_host = os.environ.get('IG_BIND_HOST', '0.0.0.0' if os.environ.get('RAILWAY_ENVIRONMENT') else '127.0.0.1')
-    default_port = int(os.environ.get('PORT', '8000'))
-    parser.add_argument('--host', default=default_host)
-    parser.add_argument('--port', type=int, default=default_port)
+    parser.add_argument('--host', default="0.0.0.0")
+    parser.add_argument('--port', type=int, default=int(__import__("os").environ.get("PORT", "8000")))
     parser.add_argument('--no-browser', action='store_true')
     parser.add_argument('--skip-deps', action='store_true')
     parser.add_argument(
@@ -155,9 +153,10 @@ def main() -> None:
     if sys.version_info < (3, 10):
         raise SystemExit('[X] Python 3.10 veya ustu gerekli')
 
-    if not _is_loopback_host(args.host):
-        if not os.environ.get('IG_BASIC_USER') or not os.environ.get('IG_BASIC_PASSWORD'):
-            raise SystemExit('[X] Public binding requires IG_BASIC_USER and IG_BASIC_PASSWORD')
+    if not _is_loopback_host(args.host) and os.environ.get('IG_RAILWAY') != '1':
+        raise SystemExit(
+            '[X] This unauthenticated application is localhost-only. '
+            'Use 127.0.0.1, localhost, or ::1.')
     if not 1 <= args.port <= 65535:
         raise SystemExit('[X] Port must be between 1 and 65535')
 
