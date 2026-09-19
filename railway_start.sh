@@ -4,20 +4,14 @@ set -eu
 ENV_FILE="/app/.env"
 : > "$ENV_FILE"
 
-while IFS= read -r line; do
-  case "$line" in
-    ''|'#'*) continue ;;
-  esac
-  name="${line%%=*}"
-  case "$name" in
-    ''|*[!A-Za-z0-9_]*|[0-9]*) continue ;;
-  esac
+# Copy the project's Instagram configuration from Railway Variables.
+for name in IG_SESSIONID IG_DS_USER_ID IG_CSRFTOKEN IG_MID IG_IG_DID IG_DATR IG_BASIC_USER IG_BASIC_PASSWORD; do
   eval "is_set=\${$name+x}"
   if [ "$is_set" = "x" ]; then
     eval "value=\${$name}"
     printf '%s=%s\n' "$name" "$value" >> "$ENV_FILE"
   fi
-done < /app/.env.example
+done
 
 export IG_RAILWAY="1"
 export HOST="${HOST:-0.0.0.0}"
