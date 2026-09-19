@@ -19,8 +19,8 @@ while IFS= read -r line; do
   fi
 done < /app/.env.example
 
-export RAILWAY_DEPLOYMENT="1"
+export IG_RAILWAY="1"
 export HOST="${HOST:-0.0.0.0}"
 export PORT="${PORT:-8000}"
 
-exec python /app/start.py
+exec python /app/start.py --host "$HOST" --port "$PORT" --no-browser
