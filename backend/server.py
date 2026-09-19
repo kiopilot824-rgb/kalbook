@@ -6,8 +6,6 @@ icin tasarlanmistir.
 """
 
 import argparse
-import base64
-import hmac
 import contextlib
 import hashlib
 import ipaddress
@@ -15,6 +13,8 @@ import io
 import json
 import mimetypes
 import os
+
+RAILWAY_DEPLOYMENT = os.environ.get("RAILWAY_DEPLOYMENT", "0") == "1"
 import re
 import subprocess
 import sys
@@ -992,21 +992,6 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def _dispatch(self, method):
-        # Railway/public deployment safety: require HTTP Basic Auth whenever
-        # the server is bound to a non-loopback address.
-        bind_host = str(self.server.server_address[0])
-        if not _is_loopback_hostname(bind_host):
-            user = os.environ.get('IG_BASIC_USER', '')
-            password = os.environ.get('IG_BASIC_PASSWORD', '')
-            auth = self.headers.get('Authorization', '')
-            expected = 'Basic ' + base64.b64encode(f'{user}:{password}'.encode()).decode()
-            if not user or not password or not hmac.compare_digest(auth, expected):
-                self.send_response(401)
-                self.send_header('WWW-Authenticate', 'Basic realm=Instagram OSINT Railway')
-                self.send_header('Content-Length', '0')
-                self.end_headers()
-                return
-
         expected_port = int(self.server.server_address[1])
         if not _valid_host_header(self.headers.get('Host'), expected_port):
             self._serve(*_json(403, {'error': 'invalid_host'}))
@@ -1097,7 +1082,7 @@ def main():
                     help='artifact root dir')
     args = p.parse_args()
 
-    if not _is_loopback_hostname(args.host):
+    if not _is_loopback_hostname(args.host) and os.environ.get('IG_RAILWAY') != '1':
         p.error('--host must be localhost or an explicit loopback IP address')
 
     if not os.path.isdir(args.artifacts):
